@@ -1,0 +1,5 @@
+from rest_framework.routers import DefaultRouter
+from Contratacion_.documentos_personales.API.API_Documentos_Personales import Documentos_PersonalesViewSet
+
+routerDocumentosPersonales = DefaultRouter()
+routerDocumentosPersonales.register('documentos-personales', Documentos_PersonalesViewSet)

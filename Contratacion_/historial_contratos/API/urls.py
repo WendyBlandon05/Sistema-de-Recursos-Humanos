@@ -1,0 +1,5 @@
+from rest_framework.routers import DefaultRouter
+from Contratacion_.historial_contratos.API.API_Historial_Contratos import Historial_ContratosViewSet
+
+routerHistorialContratos = DefaultRouter()
+routerHistorialContratos.register('historial-contratos', Historial_ContratosViewSet)

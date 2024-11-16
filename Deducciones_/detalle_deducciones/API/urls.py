@@ -1,0 +1,5 @@
+from rest_framework.routers import DefaultRouter
+from Deducciones_.detalle_deducciones.API.API_Detalle_Deducciones import Detalle_DeduccionesViewSet
+
+routerDetalleDeducciones = DefaultRouter()
+routerDetalleDeducciones.register('detalle-deducciones', Detalle_DeduccionesViewSet)
