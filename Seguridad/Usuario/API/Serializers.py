@@ -2,7 +2,6 @@ from Seguridad.Usuario.models import Usuario
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 
-
 class UsuarioCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=True)
@@ -18,6 +17,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     # Crear el usuario
+
     def create(self, validated_data):
         user = Usuario(
             username=validated_data['username'],

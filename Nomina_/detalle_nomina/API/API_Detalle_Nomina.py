@@ -1,3 +1,9 @@
+from io import BytesIO
+
+from django.http import HttpResponse
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,6 +13,7 @@ from Nomina_.detalle_nomina.models import Detalle_Nomina
 from Utils.ResposeData import ResponseData
 from django.db import connection
 from django.db import transaction
+import openpyxl
 
 class Detalle_NominaViewSet(viewsets.ModelViewSet):
     queryset = Detalle_Nomina.objects.all()
@@ -52,7 +59,7 @@ class Detalle_NominaViewSet(viewsets.ModelViewSet):
             print("Error al ejecutar la consulta:", e)
             return Response({"error": str(e)}, status=500)
 
-#PRUEBA DE MERODO DE INSERCION EN LILSTA
+#PRUEBA DE MEtODO DE INSERCION EN LISTA
     @action(detail=False, methods=['post'], url_path='insertar-detalles-nomina')
     def insertar_detalles_nomina(self, request):
         lista_detalles = request.data
@@ -229,3 +236,112 @@ class Detalle_NominaViewSet(viewsets.ModelViewSet):
         return Response(data_response.toResponse(), status=status.HTTP_400_BAD_REQUEST)
 
 
+    # INTENTO DE GENERAR REPORTE EN EXCEL
+    @action(detail=False, methods=['post'], url_path='reporte')
+    def generar_reporte(self, request):
+        id_nomina = request.data.get("id_nomina") or request.GET.get("id_nomina")
+
+        if id_nomina:
+            detalles = Detalle_Nomina.objects.filter(id_nomina=id_nomina, is_active=True)
+            if not detalles:
+                response_data = ResponseData(
+                    Success=False,
+                    Status=status.HTTP_404_NOT_FOUND,
+                    Message="No hay detalles de nómina asociados al id enviado",
+                    Record=None
+                )
+                return Response(response_data.toResponse(), status=status.HTTP_404_NOT_FOUND)
+        else:
+            detalles = Detalle_Nomina.objects.filter(is_active=True)
+
+        # Crear el archivo Excel
+        workbook = openpyxl.Workbook()
+        hoja = workbook.active
+        hoja.title = "Detalles de nómina"
+        hoja.append(["id_detalle_nomina", "id_nomina", "id_contrato", "salario_bruto", "salario_neto", "monto_beneficios",
+                     "monto_deducciones"])
+
+        for detalle in detalles:
+            hoja.append([detalle.id_detalle_nomina, detalle.id_nomina.id_nomina, detalle.id_contrato.id_contratos,
+                         detalle.salario_bruto, detalle.salario_neto, detalle.monto_beneficios, detalle.monto_deducciones])
+
+        # Crear la respuesta como archivo Excel
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=detalles_nomina.xlsx'
+
+        # Guardar el archivo Excel en la respuesta HTTP
+        workbook.save(response)
+
+        # Retornar la respuesta
+        return response
+
+#intento mil de un pdf:(
+    @action(detail=False, methods=['post'], url_path='reporte-pdf')
+    def generar_reporte_pdf(self, request):
+        id_nomina = request.data.get("id_nomina") or request.GET.get("id_nomina")
+
+        if id_nomina:
+            detalles = Detalle_Nomina.objects.filter(id_nomina=id_nomina, is_active=True)
+            if not detalles:
+                response_data = ResponseData(
+                    Success=False,
+                    Status=status.HTTP_404_NOT_FOUND,
+                    Message="No hay detalles de nómina asociados al id enviado",
+                    Record=None
+                )
+                return Response(response_data.toResponse(), status=status.HTTP_404_NOT_FOUND)
+        else:
+            detalles = Detalle_Nomina.objects.filter(is_active=True)
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        #encabezados que va a llevar la table
+        encabezados = ["ID Detalle Nómina", "ID Nómina", "ID Contrato", "Salario Bruto", "Salario Neto",
+                       "Monto Beneficios", "Monto Deducciones"]
+
+        data = [encabezados]
+        for detalle in detalles:
+            data.append([
+                str(detalle.id_detalle_nomina),
+                str(detalle.id_nomina.id_nomina),
+                str(detalle.id_contrato.id_contratos),
+                str(detalle.salario_bruto),
+                str(detalle.salario_neto),
+                str(detalle.monto_beneficios),
+                str(detalle.monto_deducciones),
+            ])
+        table = Table(data)
+
+        #personalizacion de la tabla
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), (0.5, 0.5, 0.5)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), (1, 1, 1)),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), (1, 1, 1)),
+            ('GRID', (0, 0), (-1, -1), 0.5, (0, 0, 0)),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ]))
+
+        elements = [table]
+
+
+        def agregar_encabezado(canvas, doc):
+            canvas.setFont("Helvetica-Bold", 16)
+            canvas.drawString(200, 750, "Reporte de Detalles de Nómina")
+
+            canvas.setFont("Helvetica", 12)
+            canvas.drawString(200, 730,
+                              "Reporte generado para la nómina ID: {}".format(id_nomina if id_nomina else "lISTA DE DETALLES EXISTENTES"))
+
+            canvas.drawString(200, 710, " ")
+
+        doc.build(elements, onFirstPage=agregar_encabezado)
+        buffer.seek(0)
+
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename=detalles_nomina.pdf'
+
+        return response
