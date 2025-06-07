@@ -2,12 +2,8 @@ Grupo: # 07
 
 Integrantes:
 
-                   WENDY JULISSA MOLINA BLANDÓN
-
-                   MELVIN EXEQUIEL SILVA GONZÁLEZ
-
-                   RICHARD ALEXANDER RÍOS
-
+                   WENDY JULISSA MOLINA BLANDÓN 
+ARLETTE DARCE POVEDA
 Nombre de la Aplicación: AdminRH
 
 Versión: 1.0.0
